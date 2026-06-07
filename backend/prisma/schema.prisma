@@ -1,0 +1,92 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  INSTRUCTOR
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  DROPPED
+  COMPLETED
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(INSTRUCTOR)
+  courses      Course[] // One-to-many relationship with Course
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Course {
+  id           String       @id @default(uuid())
+  title        String
+  description  String       @db.Text
+  category     String
+  status       CourseStatus @default(DRAFT)
+  capacity     Int          @default(30)
+  instructorId String
+  instructor   User         @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  enrollments  Enrollment[] // Many-to-many junction
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("courses")
+}
+
+model Learner {
+  id          String       @id @default(uuid())
+  name        String
+  email       String       @unique
+  skillLevel  SkillLevel   @default(BEGINNER)
+  cohort      String
+  enrollments Enrollment[] // Many-to-many junction
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("learners")
+}
+
+model Enrollment {
+  id              String           @id @default(uuid())
+  learnerId       String
+  courseId        String
+  status          EnrollmentStatus @default(ACTIVE)
+  progressPercent Int              @default(0) // Ranges from 0 to 100
+
+  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([learnerId, courseId]) // Prevent duplicate enrollments in the same course
+  @@map("enrollments")
+}
